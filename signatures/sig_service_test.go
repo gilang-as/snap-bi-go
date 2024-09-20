@@ -2,6 +2,7 @@ package signatures
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -16,6 +17,15 @@ var TestConfigSigServiceData = &Config{
 
 var AccessTokenTest = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJhOGQ2YmVkNS05MzdkLTQzZTUtYTlkMi1hYWY0ODFlZjc2YTIiLCJjbGllbnRJZCI6IjZhZTk1N2M0LTI4NjMtNDcxMy1hY2NlLWJhMTJkZTYzNmNmYyIsIm5iZiI6MTYxMTM4NjM4NywiZXhwIjoxNjExMzg3Mjg3LCJpYXQiOjE2MTEzODYzODd9.nUillb6567_zkM6Ys35OOG-YWGoo7Ik1odPJn1tR-ao"
 var TimestampSigServiceTest, _ = time.Parse(TimestampFormat, "2020-01-01T00:00:00+07:00")
+
+var SignatureServiceAsymmetricResult = "AJvhevFApx+YtcXCZBnXFW9pSzzoqBzTJmLFtRzAklFEW1" +
+	"/uBe5upsAd8Wvk3u8/lO6JslGUvzLeWoynERKPdZzLo7nAFDb5VSFaENaeYanZ2hgvCm9rOQJ1j4wEv8s" +
+	"u2bHA97wMRt6jnKyhPcjd3v09pKwqca8bpJ5va4H2kIjtCZKDwc8SnTjJ7/hbSpJPCDIljRxCa+7UlSmZ" +
+	"Zs1uCxMXC6u+x21QypctgenGApyXQyCIN1cTIlDNlcC0VtSWJ+rS5Ye7VUTcOYF5UjslcIPq6WNF446iz" +
+	"TtPdxq3u6utM5ti8D4kjWBwsViSRslL0CCVI3zh0Bj2LUsytZlgUQ=="
+
+var SignatureServiceSymmetricResult = "aqFyJg5631pb1qegHgkgFUNWdaD7fY6MCBbfYbIdcbyTO6Y" +
+	"NEYT+wMpSmn1bnGiEjPBkSPGBPb42JK6gIalc+Q=="
 
 func TestBase_SignatureService_Symmetric(t *testing.T) {
 	sigBase := NewBase()
@@ -35,9 +45,10 @@ func TestBase_SignatureService_Symmetric(t *testing.T) {
 		return
 	}
 
-	if !assert.Equal(t, "aqFyJg5631pb1qegHgkgFUNWdaD7fY6MCBbfYbIdcbyTO6YNEYT+wMpSmn1bnGiEjPBkSPGBPb42JK6gIalc+Q==",
+	if !assert.Equal(t, SignatureServiceSymmetricResult,
 		signature.StdEncoding()) {
 		t.Fatalf("signature is not the same")
+		return
 	}
 }
 
@@ -59,8 +70,47 @@ func TestBase_SignatureService_Asymmetric(t *testing.T) {
 		return
 	}
 
-	if !assert.Equal(t, "AJvhevFApx+YtcXCZBnXFW9pSzzoqBzTJmLFtRzAklFEW1/uBe5upsAd8Wvk3u8/lO6JslGUvzLeWoynERKPdZzLo7nAFDb5VSFaENaeYanZ2hgvCm9rOQJ1j4wEv8su2bHA97wMRt6jnKyhPcjd3v09pKwqca8bpJ5va4H2kIjtCZKDwc8SnTjJ7/hbSpJPCDIljRxCa+7UlSmZZs1uCxMXC6u+x21QypctgenGApyXQyCIN1cTIlDNlcC0VtSWJ+rS5Ye7VUTcOYF5UjslcIPq6WNF446izTtPdxq3u6utM5ti8D4kjWBwsViSRslL0CCVI3zh0Bj2LUsytZlgUQ==",
+	if !assert.Equal(t, SignatureServiceAsymmetricResult,
 		signature.StdEncoding()) {
 		t.Fatalf("signature is not the same")
+		return
+	}
+}
+
+func TestBase_SignatureService_Symmetric_Validation(t *testing.T) {
+	sigBase := NewBase()
+	sigBase.SetConfig(TestConfigSigAccessTokenData)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/balance-inquiry", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-TIMESTAMP", TimestampSigAccessTokenTest.Format(TimestampFormat))
+	req.Header.Set("Authorization", "Bearer "+AccessTokenTest)
+	req.Header.Set("X-EXTERNAL-ID", time.Now().String())
+	req.Header.Set("X-SIGNATURE", SignatureServiceSymmetricResult)
+	req.Header.Set("X-PARTNER-ID", TestConfigSigAccessTokenData.ClientID)
+
+	err := sigBase.VerifySignatureService(SignatureAlgSymmetric, req)
+	if err != nil {
+		t.Fatalf("Error in SignatureAccessToken Symmetric: %s", err.Error())
+		return
+	}
+}
+
+func TestBase_SignatureService_Asymmetric_Validation(t *testing.T) {
+	sigBase := NewBase()
+	sigBase.SetConfig(TestConfigSigAccessTokenData)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/balance-inquiry", nil)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-TIMESTAMP", TimestampSigAccessTokenTest.Format(TimestampFormat))
+	req.Header.Set("Authorization", "Bearer "+AccessTokenTest)
+	req.Header.Set("X-EXTERNAL-ID", time.Now().String())
+	req.Header.Set("X-SIGNATURE", SignatureServiceAsymmetricResult)
+	req.Header.Set("X-PARTNER-ID", TestConfigSigAccessTokenData.ClientID)
+
+	err := sigBase.VerifySignatureService(SignatureAlgAsymmetric, req)
+	if err != nil {
+		t.Fatalf("Error in SignatureAccessToken Symmetric: %s", err.Error())
+		return
 	}
 }

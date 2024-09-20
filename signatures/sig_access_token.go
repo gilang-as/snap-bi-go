@@ -60,7 +60,7 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 				return nil
 			})),
 			validation.Field(&headers.Signature, validation.Required),
-			validation.Field(&headers.PartnerID, validation.Required),
+			validation.Field(&headers.ClientKey, validation.Required),
 		)
 	}
 
@@ -80,7 +80,7 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 	switch alg {
 	case SignatureAlgAsymmetric:
 		configData := &Config{
-			ClientID:       headers.PartnerID,
+			ClientID:       headers.ClientKey,
 			PrivateKeyPath: base.config.PrivateKeyPath,
 			PublicKeyPath:  base.config.PublicKeyPath,
 			PrivateKey:     base.config.PrivateKey,
@@ -90,7 +90,7 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 		signature, err = sigAccessTokenAsymmetric(configData, input)
 	case SignatureAlgSymmetric:
 		configData := &Config{
-			ClientID:     headers.PartnerID,
+			ClientID:     headers.ClientKey,
 			ClientSecret: base.config.ClientSecret,
 		}
 

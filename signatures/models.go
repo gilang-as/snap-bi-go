@@ -47,7 +47,7 @@ func (sig Signature) VerifySignature(checkSignature string) (bool, error) {
 		return false, fmt.Errorf("decoding type not found %s", decodingType)
 	}
 
-	return checkSignature != sigEncode, nil
+	return checkSignature == sigEncode, nil
 }
 
 type SignatureHeaders struct {
@@ -57,4 +57,5 @@ type SignatureHeaders struct {
 	Signature     string `json:"X-SIGNATURE,omitempty"`
 	PartnerID     string `json:"X-PARTNER-ID,omitempty"`
 	ExternalID    string `json:"X-EXTERNAL-ID,omitempty"`
+	ClientKey     string `json:"X-CLIENT-KEY,omitempty"`
 }

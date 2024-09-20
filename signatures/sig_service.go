@@ -96,16 +96,22 @@ func (base *Base) VerifySignatureService(alg string, request *http.Request) erro
 		return err
 	}
 
-	var body map[string]interface{}
-	err = json.Unmarshal([]byte(requestBody.String()), &body)
-	if err != nil {
-		return err
+	var body interface{}
+	if http.NoBody != request.Body {
+		err = json.Unmarshal([]byte(requestBody.String()), &body)
+		if err != nil {
+			return err
+		}
+	} else {
+		body = nil
 	}
+
+	token := headers.Authorization[7:]
 
 	input := SignatureServiceInput{
 		HttpMethod:  request.Method,
-		Url:         request.URL.RawPath,
-		AccessToken: headers.Authorization,
+		Url:         request.URL.Path,
+		AccessToken: token,
 		RequestBody: body,
 		Timestamp:   timestamp,
 	}

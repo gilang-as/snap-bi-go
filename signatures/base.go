@@ -238,6 +238,7 @@ func getHeaders(request *http.Request) SignatureHeaders {
 		Signature:     request.Header.Get("X-SIGNATURE"),
 		PartnerID:     request.Header.Get("X-PARTNER-ID"),
 		ExternalID:    request.Header.Get("X-EXTERNAL-ID"),
+		ClientKey:     request.Header.Get("X-CLIENT-KEY"),
 	}
 
 	return headers
