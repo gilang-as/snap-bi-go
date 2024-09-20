@@ -1,2 +1,1 @@
-# snap-bi-go
-SNAP BI Golang
+# SNAP BI Golang
