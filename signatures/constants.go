@@ -18,3 +18,8 @@ const signatureFormatAsymmetric = "[CLIENT_ID]|[TIMESTAMP]"
 
 const signatureServiceFormatSymmetric = "[HTTP_METHOD]:[RELATIVE_URL]:[ACCESS_TOKEN]:[REQUEST_BODY]:[TIMESTAMP]"
 const signatureServiceFormatAsymmetric = "[HTTP_METHOD]:[RELATIVE_URL]:[REQUEST_BODY]:[TIMESTAMP]"
+
+const base64StdEncoding = "std_encoding"
+const base64RawStdEncoding = "raw_std_encoding"
+const base64UrlEncoding = "url_encoding"
+const base64RawUrlEncoding = "raw_url_encoding"

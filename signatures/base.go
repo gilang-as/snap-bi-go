@@ -15,6 +15,7 @@ import (
 	"hash"
 	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -142,7 +143,7 @@ func getRsa(isPem bool, privateKey string, stringToSign string) ([]byte, error) 
 			return nil, err
 		}
 	} else {
-		pemData, err = getDecoding(privateKey)
+		pemData, _, err = getDecoding(privateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -185,32 +186,32 @@ func generateRequestBody(requestBody interface{}) (string, error) {
 	return requestBodyResult, nil
 }
 
-func getDecoding(input string) ([]byte, error) {
+func getDecoding(input string) ([]byte, string, error) {
 	decodedString, errStdEncode := base64.StdEncoding.DecodeString(input)
 	if errStdEncode == nil {
-		return decodedString, nil
+		return decodedString, base64StdEncoding, nil
 	}
 
 	decodedString, errRawStdEncode := base64.RawStdEncoding.DecodeString(input)
 	if errRawStdEncode == nil {
-		return decodedString, nil
+		return decodedString, base64RawStdEncoding, nil
 	}
 
 	decodedString, errUrlEncode := base64.URLEncoding.DecodeString(input)
 	if errUrlEncode == nil {
-		return decodedString, nil
+		return decodedString, base64UrlEncoding, nil
 	}
 
 	decodedString, errRawUrlEncode := base64.RawURLEncoding.DecodeString(input)
 	if errRawUrlEncode == nil {
-		return decodedString, nil
+		return decodedString, base64RawUrlEncoding, nil
 	}
 
 	log.Printf("error decode StdEncoding : %s", errStdEncode)
 	log.Printf("error decode RawStdEncoding : %s", errRawStdEncode)
 	log.Printf("error decode UrlEncoding : %s", errUrlEncode)
 	log.Printf("error decode RawUrlEncoding : %s", errRawUrlEncode)
-	return nil, fmt.Errorf("failed to decode data")
+	return nil, "", fmt.Errorf("failed to decode data")
 }
 
 func getRsaPrivateKey(privateKeyBlock []byte) (*rsa.PrivateKey, error) {
@@ -227,4 +228,17 @@ func getRsaPrivateKey(privateKeyBlock []byte) (*rsa.PrivateKey, error) {
 	log.Printf("error PKCS8 : %s", errPKCS8.Error())
 	log.Printf("error PKCS1 : %s", errPKCS1.Error())
 	return nil, fmt.Errorf("failed to parse private key, must be in PKCS8 or PKCS1")
+}
+
+func getHeaders(request *http.Request) SignatureHeaders {
+	headers := SignatureHeaders{
+		ContentType:   request.Header.Get("Content-Type"),
+		Authorization: request.Header.Get("Authorization"),
+		TimeStamp:     request.Header.Get("X-TIMESTAMP"),
+		Signature:     request.Header.Get("X-SIGNATURE"),
+		PartnerID:     request.Header.Get("X-PARTNER-ID"),
+		ExternalID:    request.Header.Get("X-EXTERNAL-ID"),
+	}
+
+	return headers
 }

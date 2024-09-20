@@ -2,6 +2,10 @@ package signatures
 
 import (
 	"crypto"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
 	"strings"
 	"time"
 
@@ -41,6 +45,106 @@ func (base *Base) SignatureService(alg string, input SignatureServiceInput) (Sig
 	}
 
 	return signature, err
+}
+
+func (base *Base) VerifySignatureService(alg string, request *http.Request) error {
+	headers := getHeaders(request)
+	var validate func(headers SignatureHeaders) error
+
+	validate = func(headers SignatureHeaders) error {
+		return validation.ValidateStruct(&headers,
+			validation.Field(&headers.ContentType, validation.Required, validation.By(func(value interface{}) error {
+				contentTypeHeader := value.(string)
+				if strings.ToLower(contentTypeHeader) != "application/json" {
+					return errors.New("Content-Type header is not application/json")
+				}
+
+				return nil
+			})),
+			validation.Field(&headers.TimeStamp, validation.Required, validation.By(func(value interface{}) error {
+				timestampHeader := value.(string)
+				_, err := time.Parse(TimestampFormat, timestampHeader)
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})),
+			validation.Field(&headers.Authorization, validation.Required, validation.By(func(value interface{}) error {
+				authorizationHeader := value.(string)
+				if !strings.HasPrefix(authorizationHeader, "Bearer ") {
+					return errors.New("authorization header is not valid, must be Bearer Token")
+				}
+
+				return nil
+			})),
+			validation.Field(&headers.ExternalID, validation.Required),
+			validation.Field(&headers.Signature, validation.Required),
+			validation.Field(&headers.PartnerID, validation.Required),
+		)
+	}
+
+	if err := validate(headers); err != nil {
+		return err
+	}
+
+	timestamp, _ := time.Parse(TimestampFormat, headers.TimeStamp)
+
+	requestBody := new(strings.Builder)
+	_, err := io.Copy(requestBody, request.Body)
+	if err != nil {
+		return err
+	}
+
+	var body map[string]interface{}
+	err = json.Unmarshal([]byte(requestBody.String()), &body)
+	if err != nil {
+		return err
+	}
+
+	input := SignatureServiceInput{
+		HttpMethod:  request.Method,
+		Url:         request.URL.RawPath,
+		AccessToken: headers.Authorization,
+		RequestBody: body,
+		Timestamp:   timestamp,
+	}
+
+	var signature Signature
+
+	switch alg {
+	case SignatureAlgAsymmetric:
+		configData := &Config{
+			ClientID:       headers.PartnerID,
+			PrivateKeyPath: base.config.PrivateKeyPath,
+			PublicKeyPath:  base.config.PublicKeyPath,
+			PrivateKey:     base.config.PrivateKey,
+			PublicKey:      base.config.PublicKey,
+		}
+
+		signature, err = sigServiceAsymmetric(configData, input)
+	case SignatureAlgSymmetric:
+		configData := &Config{
+			ClientID:     headers.PartnerID,
+			ClientSecret: base.config.ClientSecret,
+		}
+
+		signature, err = sigServiceSymmetric(configData, input)
+	default:
+		panic("unknown signature algorithm: " + alg)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if isValid, err := signature.VerifySignature(headers.Signature); err != nil {
+		return err
+	} else if !isValid {
+		return errors.New("invalid signature")
+	}
+
+	return nil
 }
 
 func sigServiceAsymmetric(config *Config, input SignatureServiceInput) (Signature, error) {
