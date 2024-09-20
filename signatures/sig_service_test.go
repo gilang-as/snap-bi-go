@@ -149,3 +149,5 @@ func TestBase_SignatureService_Asymmetric_Validation(t *testing.T) {
 		return
 	}
 }
+
+// TODO: private key using PEM files
