@@ -2,6 +2,7 @@ package signatures
 
 import (
 	"crypto"
+	"crypto/hmac"
 	"errors"
 	"net/http"
 	"strings"
@@ -11,7 +12,8 @@ import (
 )
 
 type SignatureAccessTokenInput struct {
-	Timestamp time.Time
+	Timestamp       time.Time
+	SignatureHeader string
 }
 
 type inputAccessToken struct {
@@ -19,6 +21,7 @@ type inputAccessToken struct {
 	ClientSecret string    `json:"client_secret"`
 	Timestamp    time.Time `json:"timestamp"`
 	PrivateKey   string    `json:"private_key"`
+	PublicKey    string    `json:"public_key"`
 }
 
 func (base *Base) SignatureAccessToken(alg string, input SignatureAccessTokenInput) (Signature, error) {
@@ -26,9 +29,9 @@ func (base *Base) SignatureAccessToken(alg string, input SignatureAccessTokenInp
 	var err error
 	switch alg {
 	case SignatureAlgAsymmetric:
-		signature, err = sigAccessTokenAsymmetric(base.config, input)
+		signature, _, err = sigAccessTokenAsymmetric(base.config, input)
 	case SignatureAlgSymmetric:
-		signature, err = sigAccessTokenSymmetric(base.config, input)
+		signature, _, err = sigAccessTokenSymmetric(base.config, input)
 	default:
 		panic("unknown signature algorithm: " + alg)
 	}
@@ -71,10 +74,11 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 	timestamp, _ := time.Parse(TimestampFormat, headers.TimeStamp)
 
 	input := SignatureAccessTokenInput{
-		Timestamp: timestamp,
+		Timestamp:       timestamp,
+		SignatureHeader: headers.Signature,
 	}
 
-	var signature Signature
+	var isValid bool
 	var err error
 
 	switch alg {
@@ -87,14 +91,14 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 			PublicKey:      base.config.PublicKey,
 		}
 
-		signature, err = sigAccessTokenAsymmetric(configData, input)
+		_, isValid, err = sigAccessTokenAsymmetric(configData, input)
 	case SignatureAlgSymmetric:
 		configData := &Config{
 			ClientID:     headers.ClientKey,
 			ClientSecret: base.config.ClientSecret,
 		}
 
-		signature, err = sigAccessTokenSymmetric(configData, input)
+		_, isValid, err = sigAccessTokenSymmetric(configData, input)
 	default:
 		panic("unknown signature algorithm: " + alg)
 	}
@@ -103,59 +107,89 @@ func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) 
 		return err
 	}
 
-	if isValid, err := signature.VerifySignature(headers.Signature); err != nil {
-		return err
-	} else if !isValid {
+	if !isValid {
 		return errors.New("invalid signature")
 	}
 
 	return nil
 }
 
-func sigAccessTokenAsymmetric(config *Config, input SignatureAccessTokenInput) (Signature, error) {
+func sigAccessTokenAsymmetric(config *Config, input SignatureAccessTokenInput) (Signature, bool, error) {
+	clientID := config.ClientID
+	timestamp, err := changeTimeToIndo(input.Timestamp)
+	if err != nil {
+		return nil, false, err
+	}
+
+	sigInput := inputAccessToken{
+		ClientID:  clientID,
+		Timestamp: input.Timestamp,
+	}
+
 	validate := func(model inputAccessToken) error {
 		return validation.ValidateStruct(&model,
 			validation.Field(&model.ClientID, validation.Required),
-			validation.Field(&model.PrivateKey, validation.Required),
 			validation.Field(&model.Timestamp, validation.Required),
 		)
 	}
 
-	clientID := config.ClientID
-	privateKey, isPem, err := getPrivateKey(config)
-	if err != nil {
-		return nil, err
-	}
-
-	sigInput := inputAccessToken{
-		ClientID:   clientID,
-		Timestamp:  input.Timestamp,
-		PrivateKey: privateKey,
-	}
-
-	if err := validate(sigInput); err != nil {
-		return Signature{}, err
-	}
-
-	timestamp, err := changeTimeToIndo(input.Timestamp)
-	if err != nil {
-		return Signature{}, err
+	if err = validate(sigInput); err != nil {
+		return nil, false, err
 	}
 
 	stringToSign := signatureFormatAsymmetric
 	stringToSign = strings.Replace(stringToSign, formatClientID, clientID, -1)
 	stringToSign = strings.Replace(stringToSign, formatTimestamp, timestamp, -1)
 
-	sigData, err := getRsa(isPem, sigInput.PrivateKey, stringToSign)
-	if err != nil {
-		return Signature{}, err
-	}
+	if input.SignatureHeader == "" {
+		privateKey, isPem, err := getPrivateKey(config)
+		if err != nil {
+			return nil, false, err
+		}
 
-	signature := Signature(sigData)
-	return signature, err
+		inputRsa := RsaSignatureInput{
+			IsPem:        isPem,
+			PrivateKey:   privateKey,
+			StringToSign: stringToSign,
+			HashAlg:      crypto.SHA256,
+		}
+
+		sigData, _, err := getRsaSignature(inputRsa)
+		if err != nil {
+			return nil, false, err
+		}
+
+		signature := Signature(sigData)
+		return signature, true, nil
+	} else {
+		publicKey, isPem, err := getPublicKey(config)
+		if err != nil {
+			return nil, false, err
+		}
+
+		sigDecoded, _, err := getDecoding(input.SignatureHeader)
+		if err != nil {
+			return nil, false, err
+		}
+
+		inputRsa := RsaSignatureInput{
+			IsPem:           isPem,
+			StringToSign:    stringToSign,
+			PublicKey:       publicKey,
+			SignatureHeader: sigDecoded,
+			HashAlg:         crypto.SHA256,
+		}
+
+		_, isValid, err := getRsaSignature(inputRsa)
+		if err != nil {
+			return nil, false, err
+		}
+
+		return nil, isValid, nil
+	}
 }
 
-func sigAccessTokenSymmetric(config *Config, input SignatureAccessTokenInput) (Signature, error) {
+func sigAccessTokenSymmetric(config *Config, input SignatureAccessTokenInput) (Signature, bool, error) {
 	validate := func(model inputAccessToken) error {
 		return validation.ValidateStruct(&model,
 			validation.Field(&model.ClientID, validation.Required),
@@ -174,7 +208,7 @@ func sigAccessTokenSymmetric(config *Config, input SignatureAccessTokenInput) (S
 	}
 
 	if err := validate(sigInput); err != nil {
-		return Signature{}, err
+		return nil, false, err
 	}
 
 	timestamp := input.Timestamp.Format(TimestampFormat)
@@ -185,9 +219,19 @@ func sigAccessTokenSymmetric(config *Config, input SignatureAccessTokenInput) (S
 
 	sigData, err := getHmac(clientSecret, stringToSign, crypto.SHA512)
 	if err != nil {
-		return Signature{}, err
+		return nil, false, err
 	}
 
 	signature := Signature(sigData)
-	return signature, err
+
+	if input.SignatureHeader != "" {
+		sigDecode, _, err := getDecoding(input.SignatureHeader)
+		if err != nil {
+			return nil, false, err
+		}
+
+		return signature, hmac.Equal(signature, sigDecode), nil
+	} else {
+		return signature, false, err
+	}
 }
