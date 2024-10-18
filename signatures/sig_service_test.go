@@ -67,7 +67,7 @@ var SignatureServiceSymmetricResult = "aqFyJg5631pb1qegHgkgFUNWdaD7fY6MCBbfYbIdc
 	"NEYT+wMpSmn1bnGiEjPBkSPGBPb42JK6gIalc+Q=="
 
 func TestBase_SignatureService_Symmetric(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigServiceData)
 
 	inputData := SignatureServiceInput{
@@ -92,7 +92,7 @@ func TestBase_SignatureService_Symmetric(t *testing.T) {
 }
 
 func TestBase_SignatureService_Asymmetric(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigServiceData)
 
 	inputData := SignatureServiceInput{
@@ -117,7 +117,7 @@ func TestBase_SignatureService_Asymmetric(t *testing.T) {
 }
 
 func TestBase_SignatureService_Symmetric_Validation(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/balance-inquiry", nil)
@@ -136,7 +136,7 @@ func TestBase_SignatureService_Symmetric_Validation(t *testing.T) {
 }
 
 func TestBase_SignatureService_Asymmetric_Validation(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/balance-inquiry", nil)

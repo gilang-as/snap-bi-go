@@ -68,7 +68,7 @@ var SignatureAccessTokenSymmetricResult = "kxZ0PJFmFVllsoVVZukP1lBtDajrkLnfcqNbf
 	"PMseQLXC7xILbY7JpdNvINp/I1Ar7VdYfg=="
 
 func TestBase_SignatureAccessToken_Symmetric(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	inputData := SignatureAccessTokenInput{
@@ -89,7 +89,7 @@ func TestBase_SignatureAccessToken_Symmetric(t *testing.T) {
 }
 
 func TestBase_SignatureAccessToken_Asymmetric(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	inputData := SignatureAccessTokenInput{
@@ -110,7 +110,7 @@ func TestBase_SignatureAccessToken_Asymmetric(t *testing.T) {
 }
 
 func TestBase_SignatureAccessToken_Symmetric_Validation(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/access-token/b2b", bytes.NewBuffer([]byte(TestRequestBodySignatureAccessToken)))
@@ -127,7 +127,7 @@ func TestBase_SignatureAccessToken_Symmetric_Validation(t *testing.T) {
 }
 
 func TestBase_SignatureAccessToken_Asymmetric_Validation(t *testing.T) {
-	sigBase := NewBase()
+	sigBase := New()
 	sigBase.SetConfig(TestConfigSigAccessTokenData)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/access-token/b2b", bytes.NewBuffer([]byte(TestRequestBodySignatureAccessToken)))

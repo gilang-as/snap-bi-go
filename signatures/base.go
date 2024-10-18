@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-type Base struct {
+type Snap struct {
 	config *Config
 }
 
@@ -47,8 +47,8 @@ func init() {
 	}
 }
 
-func NewBase() *Base {
-	return &Base{
+func New() *Snap {
+	return &Snap{
 		config: &Config{
 			ClientID:       os.Getenv("BI_SNAP_CLIENT_ID"),
 			ClientSecret:   os.Getenv("BI_SNAP_CLIENT_SECRET"),
@@ -60,17 +60,16 @@ func NewBase() *Base {
 	}
 }
 
-func (base *Base) SetConfig(config *Config) *Base {
+func (base *Snap) SetConfig(config *Config) *Snap {
 	if config == nil {
 		panic("config is nil")
 	}
 
-	// TODO: validate data
 	base.config = config
 	return base
 }
 
-func (base *Base) SetLocation(loc *time.Location) *Base {
+func (base *Snap) SetLocation(loc *time.Location) *Snap {
 	if loc == nil {
 		panic("location is nil")
 	}

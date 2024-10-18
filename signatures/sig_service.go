@@ -36,7 +36,7 @@ type inputSignatureService struct {
 	PublicKey    string `json:"public_key"`
 }
 
-func (base *Base) SignatureService(alg string, input SignatureServiceInput) (Signature, error) {
+func (base *Snap) SignatureService(alg string, input SignatureServiceInput) (Signature, error) {
 	var signature Signature
 	var err error
 	switch alg {
@@ -51,7 +51,7 @@ func (base *Base) SignatureService(alg string, input SignatureServiceInput) (Sig
 	return signature, err
 }
 
-func (base *Base) VerifySignatureService(alg string, request *http.Request) error {
+func (base *Snap) VerifySignatureService(alg string, request *http.Request) error {
 	headers := getHeaders(request)
 	var validate func(headers SignatureHeaders) error
 

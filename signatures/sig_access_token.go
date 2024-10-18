@@ -24,7 +24,7 @@ type inputAccessToken struct {
 	PublicKey    string    `json:"public_key"`
 }
 
-func (base *Base) SignatureAccessToken(alg string, input SignatureAccessTokenInput) (Signature, error) {
+func (base *Snap) SignatureAccessToken(alg string, input SignatureAccessTokenInput) (Signature, error) {
 	var signature Signature
 	var err error
 	switch alg {
@@ -39,7 +39,7 @@ func (base *Base) SignatureAccessToken(alg string, input SignatureAccessTokenInp
 	return signature, err
 }
 
-func (base *Base) VerifySignatureAccessToken(alg string, request *http.Request) error {
+func (base *Snap) VerifySignatureAccessToken(alg string, request *http.Request) error {
 	headers := getHeaders(request)
 	var validate func(headers SignatureHeaders) error
 
